@@ -1,12 +1,18 @@
 #pragma once
+#include <string>
 #include <windows.h>
 
-typedef struct {
-	unsigned short repeat;
-	unsigned char scan;
-	int extended, previous_state, transition_state;
-} ExKeyInfo;
+struct EnumData {
+	std::wstring match;
+	std::wstring title;
+	HWND result = 0;
+};
 
-unsigned int ExKeyInfo_uint(ExKeyInfo i);
+struct ExKeyInfo {
+	unsigned short repeat = 0;
+	unsigned char scan = 0;
+	int extended = 0, previous_state = 0, transition_state = 0;
+	operator LPARAM();
+};
 
-HWND find_process(const wchar_t* name);
+HWND find_process(EnumData& data);
