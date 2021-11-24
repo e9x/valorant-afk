@@ -4,39 +4,48 @@
 #include <stdlib.h>
 #include <iostream>
 
-HWND game;
+HWND game = 0;
+bool afk = false;
+EnumData search{ L"VALORANT-Win64-Shipping.exe", L"VALORANT" };
 
-int quit = 0;
+void wait_game() {
+	while (!(game = find_process(search))) Sleep(1);
+	std::cout << "Found HWND: 0x" << std::hex << game << std::endl;
+}
 
 DWORD WINAPI repeat_key(LPVOID param) {
-	short vk_1 = LOBYTE(VkKeyScanW('a'));
-	short vk_2 = LOBYTE(VkKeyScanW('d'));
-	short vk_current = vk_1;
+	short
+		vk_1 = LOBYTE(VkKeyScanW('a')),
+		vk_2 = LOBYTE(VkKeyScanW('d')),
+		vk_current = vk_1;
 	
 	srand((unsigned int)time(0));
 
-	while (!quit) {
+	while (true) {
 		Sleep(1);
-
-		CURSORINFO info{};
-		info.cbSize = sizeof(info);
-
-		if (!GetCursorInfo(&info)) {
-			std::cerr << "GetCursorInfo() bad " << GetLastError() << std::endl;
-			continue;
+		
+		if (!IsWindow(game)) {
+			game = NULL;
+			wait_game();
 		}
 
-		if (info.flags & CURSOR_SHOWING) continue;
-		
-		ExKeyInfo lparam{};
-		lparam.scan = MapVirtualKeyW(vk_current, MAPVK_VK_TO_VSC);
-		PostMessage(game, WM_KEYDOWN, vk_current, lparam);
-		Sleep(100 + (rand() % 10));
-		lparam.repeat = 1;
-		lparam.previous_state = 1;
-		lparam.transition_state = 1;
-		PostMessage(game, WM_KEYUP, vk_current, lparam);
-		Sleep(100 + (rand() % 10));
+		if (afk) {
+			CURSORINFO info{};
+			info.cbSize = sizeof(info);
+			GetCursorInfo(&info);
+
+			if (!(info.flags & CURSOR_SHOWING)) {
+				ExKeyInfo lparam{};
+				lparam.scan = MapVirtualKeyW(vk_current, MAPVK_VK_TO_VSC);
+				PostMessage(game, WM_KEYDOWN, vk_current, lparam);
+				Sleep(100 + (rand() % 10));
+				lparam.repeat = 1;
+				lparam.previous_state = 1;
+				lparam.transition_state = 1;
+				PostMessage(game, WM_KEYUP, vk_current, lparam);
+				Sleep(100 + (rand() % 10));
+			}
+		}
 
 		vk_current = vk_current == vk_1 ? vk_2 : vk_1;
 	}
@@ -44,34 +53,27 @@ DWORD WINAPI repeat_key(LPVOID param) {
 	return EXIT_SUCCESS;
 }
 
-EnumData search{L"VALORANT-Win64-Shipping.exe", L"VALORANT"};
-
-void wait_game() {
-	std::cout << "Waiting for HWND" << std::endl;;
-	while (!(game = find_process(search))) Sleep(1);
-	std::cout << "Found HWND: 0x" << std::hex << game << std::endl;
-}
-
 int main() {
-	HWND console = GetConsole(); 
-	
-	std::cout << "Console HWND: 0x" << std::hex << console << std::endl;
-
 	wait_game();
 
 	HANDLE thread = CreateThread(0, 0, repeat_key, 0, 0, 0);
 	
-	std::cout << "Press [ESC] in this terminal to quit" << std::endl;;
+	std::cout << "Press [F6] to toggle AFK" << std::endl;;
 
-	while (!quit) {
-		if (GetAsyncKeyState(VK_ESCAPE) && GetForegroundWindow() == console) {
-			quit = true;
+	bool held = true;
+
+	while (true) {
+		if (GetAsyncKeyState(VK_F6)) {
+			if (!held) {
+				afk ^= 1;
+				std::cout << "\r" << (afk ? "AFK          " : "No longer AFK");
+				held = true;
+			}
 		}
-		else if (!IsWindow(game)) {
-			game = NULL;
-			wait_game();
-		}
+		else held = false;
 	}
+
+	std::cout << std::endl;
 
 	if (thread) WaitForSingleObject(thread, 100);
 	
