@@ -15,4 +15,6 @@ struct ExKeyInfo {
 	operator LPARAM();
 };
 
+HWND GetConsole();
+
 HWND find_process(EnumData& data);

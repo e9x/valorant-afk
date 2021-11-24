@@ -39,7 +39,6 @@ DWORD WINAPI repeat_key(LPVOID param) {
 		Sleep(100 + (rand() % 10));
 
 		vk_current = vk_current == vk_1 ? vk_2 : vk_1;
-		std::cout << "sent" << std::endl;
 	}
 
 	return EXIT_SUCCESS;
@@ -54,15 +53,24 @@ void wait_game() {
 }
 
 int main() {
+	HWND console = GetConsole(); 
+	
+	std::cout << "Console HWND: 0x" << std::hex << console << std::endl;
+
 	wait_game();
 
 	HANDLE thread = CreateThread(0, 0, repeat_key, 0, 0, 0);
 	
 	std::cout << "Press [ESC] in this terminal to quit" << std::endl;;
 
-	while (!(quit = _getch() == VK_ESCAPE)) if (!IsWindow(game)) {
-		game = NULL;
-		wait_game();
+	while (!quit) {
+		if (GetAsyncKeyState(VK_ESCAPE) && GetForegroundWindow() == console) {
+			quit = true;
+		}
+		else if (!IsWindow(game)) {
+			game = NULL;
+			wait_game();
+		}
 	}
 
 	if (thread) WaitForSingleObject(thread, 100);
